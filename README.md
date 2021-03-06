@@ -254,9 +254,39 @@ for tissue in stomach sigmoid_colon; do
 done
 ```
 
+We download the matrix of H3K4me3 FC signals over promoter regions.
+```
+wget https://public-docs.crg.es/rguigo/Data/bborsari/UVIC/epigenomics_course/H3K4me3.matrix.tsv
+```
 
+We create a folder to store the study of the correlation coefficient between expression and H3K4me3 levels-
+```
+mkdir scatterplot.correlation
+cd ..
+```
 
+We check that the row order (list of genes) is the same in the expression matrices of the two tissue.
+```
+diff <(cut -f1 data/tsv.files/ENCFF268RWA.tsv) <(cut -f1 data/tsv.files/ENCFF918KPC.tsv)
+```
 
+We get the expression matrix.
+```
+paste data/tsv.files/ENCFF268RWA.tsv <(cut -f2 data/tsv.files/ENCFF918KPC.tsv) |\
+awk 'BEGIN{FS=OFS="\t"; print "sigmoid_colon", "stomach"}{print}' > analyses/expression.matrix.tsv
+```
+
+We check that the row order is the same for expression and H3K4me3 matrices.
+```
+diff <(cut -f1 analyses/H3K4me3.matrix.tsv) <(cut -f1 analyses/expression.matrix.tsv)
+```
+
+We produce a scatterplot of expression (x axis) vs. H3K4me3 (y axis).
+```
+for tissue in sigmoid_colon stomach; do
+  Rscript ../bin/scatterplot.correlation.R --expression analyses/expression.matrix.tsv --mark analyses/H3K4me3.matrix.tsv --tissue "$tissue" --output analyses/scatterplot.correlation/scatterplot.correlation."$tissue".pdf
+done
+```
 
 
 
