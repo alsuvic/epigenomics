@@ -288,6 +288,73 @@ for tissue in sigmoid_colon stomach; do
 done
 ```
 
+We create some folders.
+```
+cd analyses/
+mkdir peaks.analysis
+cd ..
+mkdir data/bed.files
+```
+
+We convert bigBed files of H3K4me3 peaks to BED files.
+```
+cut -f1 analyses/bigBed.peaks.ids.txt |\
+while read filename; do
+  bigBedToBed data/bigBed.files/"$filename".bigBed data/bed.files/"$filename".bed
+done
+```
+
+We download the list of promoters ([-2 kb, +2 Kb] from TSS) of protein-coding genes.
+```
+cd annotation/
+wget https://public-docs.crg.es/rguigo/Data/bborsari/UVIC/epigenomics_course/gencode.v24.protein.coding.non.redundant.TSS.bed
+cd ..
+```
+
+We retrieve genes with peaks of H3K4me3 at the promoter region in each tissue.
+```
+cut -f-2 analyses/bigBed.peaks.ids.txt |\
+while read filename tissue; do 
+  bedtools intersect -a annotation/gencode.v24.protein.coding.non.redundant.TSS.bed -b data/bed.files/"$filename".bed -u |\
+  cut -f7 |\
+  sort -u > analyses/peaks.analysis/genes.with.peaks."$tissue".H3K4me3.txt
+done
+```
+
+Genes marked by H3K4me3 in both tissues.
+```
+../bin/selectRows.sh analyses/peaks.analysis/genes.with.peaks.stomach.H3K4me3.txt analyses/peaks.analysis/genes.with.peaks.sigmoid_colon.H3K4me3.txt |\
+cut -d "." -f1 > analyses/peaks.analysis/genes.marked.both.tissues.H3K4me3.txt
+```
+
+Genes with sigmoid colon-specific marking.
+```
+../bin/discardRows.sh analyses/peaks.analysis/genes.with.peaks.stomach.H3K4me3.txt analyses/peaks.analysis/genes.with.peaks.sigmoid_colon.H3K4me3.txt |\
+cut -d "." -f1 > analyses/peaks.analysis/genes.with.sigmoid_colon.specific.peaks.H3K4me3.txt
+```
+
+Genes with stomach-specific marking.
+```
+../bin/discardRows.sh analyses/peaks.analysis/genes.with.peaks.sigmoid_colon.H3K4me3.txt analyses/peaks.analysis/genes.with.peaks.stomach.H3K4me3.txt |\
+cut -d "." -f1 > analyses/peaks.analysis/genes.with.stomach.specific.peaks.H3K4me3.txt
+```
+
+Genes not marked in any of the two tissues.
+```
+../bin/discardRows.sh <(cat analyses/peaks.analysis/genes.marked.both.tissues.H3K4me3.txt analyses/peaks.analysis/genes.with.stomach.specific.peaks.H3K4me3.txt analyses/peaks.analysis/genes.with.sigmoid_colon.specific.peaks.H3K4me3.txt) <(cut -f7 annotation/gencode.v24.protein.coding.gene.body.bed |\
+cut -d "." -f1) > analyses/peaks.analysis/genes.not.marked.H3K4me3.txt
+```
+
+GO enrichment analysis.
+```
+cut -f7 annotation/gencode.v24.protein.coding.gene.body.bed |\
+cut -d "." -f1 > analyses/peaks.analysis/universe.genes.txt
+```
+
+We compare the distribution of expression values between the four sets of genes.
+```
+Rscript ../bin/boxplot.expression.R --expression analyses/expression.matrix.tsv --marked_both_tissues analyses/peaks.analysis/genes.marked.both.tissues.H3K4me3.txt --stomach_specific analyses/peaks.analysis/genes.with.stomach.specific.peaks.H3K4me3.txt --sigmoid_colon_specific analyses/peaks.analysis/genes.with.sigmoid_colon.specific.peaks.H3K4me3.txt --not_marked analyses/peaks.analysis/genes.not.marked.H3K4me3.txt --output analyses/peaks.analysis/boxplot.expression.pdf
+```
 
 
 
