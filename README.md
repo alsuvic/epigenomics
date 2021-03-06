@@ -356,5 +356,81 @@ We compare the distribution of expression values between the four sets of genes.
 Rscript ../bin/boxplot.expression.R --expression analyses/expression.matrix.tsv --marked_both_tissues analyses/peaks.analysis/genes.marked.both.tissues.H3K4me3.txt --stomach_specific analyses/peaks.analysis/genes.with.stomach.specific.peaks.H3K4me3.txt --sigmoid_colon_specific analyses/peaks.analysis/genes.with.sigmoid_colon.specific.peaks.H3K4me3.txt --not_marked analyses/peaks.analysis/genes.not.marked.H3K4me3.txt --output analyses/peaks.analysis/boxplot.expression.pdf
 ```
 
+We retrieve bigBed peak calling IDs for POLR2A from the metadata.
+```
+grep -F POLR2A-human metadata.tsv |\
+grep -F "bigBed_narrowPeak" |\
+grep -F "pseudoreplicated_IDR_thresholded_peaks" |\
+grep -F "GRCh38" |\
+awk 'BEGIN{FS=OFS="\t"}{print $1, $10, $22}' |\
+sort -k2,2 -k1,1r |\
+sort -k2,2 -u >> analyses/bigBed.peaks.ids.txt
+```
+
+We download the bigBed files.
+```
+awk '$3=="POLR2A-human"{print $1}' analyses/bigBed.peaks.ids.txt |\
+while read filename; do 
+  wget -P data/bigBed.files "https://www.encodeproject.org/files/$filename/@@download/$filename.bigBed"
+done
+```
+
+We check the integrity of the downloaded bigBed files.
+```
+# Retrieve MD5 hashes of the files from the metadata
+../bin/selectRows.sh <(awk '$3=="POLR2A-human"{print $1}' analyses/bigBed.peaks.ids.txt) metadata.tsv | cut -f1,45 > data/bigBed.files/tmp
+
+# Compute MD5 hashes on the downloaded files
+cat data/bigBed.files/tmp |\
+while read filename original_md5sum; do 
+  md5sum data/bigBed.files/"$filename".bigBed |\
+  awk -v filename="$filename" -v original_md5sum="$original_md5sum" 'BEGIN{FS=" "; OFS="\t"}{print filename, original_md5sum, $1}'
+done >> data/bigBed.files/md5sum.txt
+rm data/bigBed.files/tmp
+
+# Make sure there are no files for which original and computed MD5 hashes differ
+awk '$2!=$3' data/bigBed.files/md5sum.txt
+```
+
+We convert the bigBed files to BED files.
+```
+awk '$3=="POLR2A-human"{print $1}' analyses/bigBed.peaks.ids.txt |\
+while read filename; do 
+  bigBedToBed data/bigBed.files/"$filename".bigBed data/bed.files/"$filename".bed
+done
+```
+
+Genes with peaks of POLR2A in each tissue.
+```
+grep -F POLR2A analyses/bigBed.peaks.ids.txt |\
+cut -f-2 |\
+while read filename tissue; do 
+  bedtools intersect -a annotation/gencode.v24.protein.coding.non.redundant.TSS.bed -b data/bed.files/"$filename".bed -u |\
+  cut -f7 |\
+  sort -u > analyses/peaks.analysis/genes.with.peaks."$tissue".POLR2A.txt
+done
+```
+
+We make the Venn Diagram between the sets of genes with peaks of H3K4me3 and POLR2A in the two tissues.
+```
+Rscript ../bin/VennDiagram.4groups.R --setA analyses/peaks.analysis/genes.with.peaks.stomach.H3K4me3.txt --setB analyses/peaks.analysis/genes.with.peaks.stomach.POLR2A.txt --setC analyses/peaks.analysis/genes.with.peaks.sigmoid_colon.H3K4me3.txt --setD analyses/peaks.analysis/genes.with.peaks.sigmoid_colon.POLR2A.txt --output analyses/peaks.analysis/Venn.Diagram.H3K4me3.POLR2A.png
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
