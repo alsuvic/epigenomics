@@ -571,8 +571,17 @@ cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do cat data/
 
 Therefore, 81312 peaks fall outside gene coordinates in sigmoid colon and 87814 peaks fall outside gene coordinates in stomach.
 
+We retrieve the number of peaks that fall outside gene coordinates in each tissue.
+```
+cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do    bedtools intersect -a annotation/gencode.v24.protein.coding.gene.body.bed -b data/bed.files/"$filename".bed -v |  cut -f7 |  sort -u > analyses/peaks.analysis/genes.with.peaks.outside."$tissue".txt; done
 
+cat analyses/peaks.analysis/genes.with.peaks.outside.stomach.txt | wc -l
+cat analyses/peaks.analysis/genes.with.peaks.outside.sigmoid_colon.txt | wc -l
+```
 
+![image](https://user-images.githubusercontent.com/80123456/110249995-5a701f80-7f79-11eb-8a15-214255e3fba3.png)
+
+Therefore, 4836 peaks fall outside gene coordinates in sigmoid colon and 4036 peaks fall outside gene coordinates in stomach.
 
 
 
