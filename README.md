@@ -757,9 +757,12 @@ cat get.distance.py
 
 **Task 6. For each regulatory element contained in the file regulatory.elements.starts.tsv, retrieve the closest gene and the distance to the closest gene using the python script you created above.**
 
+We get the closest gene and the distance to the closest gene.
+```
 cat regulatory.elements.starts.tsv | while read element start; do 
    python get.distance.py --input gene.starts.tsv --start $start; 
 done > regulatoryElements.genes.distances.tsv
+```
 
 **Task 7: Use R to compute the mean and the median of the distances stored in regulatoryElements.genes.distances.tsv.**
 
