@@ -416,6 +416,64 @@ We make the Venn Diagram between the sets of genes with peaks of H3K4me3 and POL
 Rscript ../bin/VennDiagram.4groups.R --setA analyses/peaks.analysis/genes.with.peaks.stomach.H3K4me3.txt --setB analyses/peaks.analysis/genes.with.peaks.stomach.POLR2A.txt --setC analyses/peaks.analysis/genes.with.peaks.sigmoid_colon.H3K4me3.txt --setD analyses/peaks.analysis/genes.with.peaks.sigmoid_colon.POLR2A.txt --output analyses/peaks.analysis/Venn.Diagram.H3K4me3.POLR2A.png
 ```
 
+## 4. EN‐TEx ATAC‐seq data: downstream analyses
+
+**Move to folder ATAC-seq, and create folders to store bigBed data files and peaks analyses files. Make sure the files are organized in a consistent way as done for ChIP-seq.**
+```
+cd ..
+cd ATAC-seq
+mkdir analyses
+mkdir data
+mkdir data/bigBed.files
+```
+
+**Retrieve from a newly generated metadata file ATAC-seq peaks (bigBed narrow, pseudoreplicated peaks, assembly GRCh38) for stomach and sigmoid_colon for the same donor used in the previous sections. Hint: have a look at what we did here. Make sure your md5sum values coincide with the ones provided by ENCODE.**
+
+We get the link to download the metadate file from the experiments in ENCODE associated the following characteristics:
+
+Assay type: DNA accessibility
+Assay title: ATAC-seq
+Status: released
+Genome assembly: GRCh38
+Biosample term name: stomach AND sigmoid colon
+
+Then, we download the file.
+```
+../bin/download.metadata.sh "https://www.encodeproject.org/metadata/?type=Experiment&replicates.library.biosample.donor.uuid=d370683e-81e7-473f-8475-7716d027849b&status=released&status=submitted&status=in+progress&assay_slims=DNA+accessibility&assay_title=ATAC-seq&biosample_ontology.term_name=stomach&biosample_ontology.term_name=sigmoid+colon" 
+```
+
+Now, we get the bigBed narrow, pseudoreplicated peaks and assembly GRCh38 for stomach and sigmoid_colon.
+```
+cat metadata.tsv | grep -F "bigBed_narrowPeak" |grep -F "pseudoreplicated_peaks" |grep -F "GRCh38" |awk 'BEGIN{FS=OFS="\t"}{print $1, $10, $22}' |sort -k2,2 -k1,1r |sort -k2,2 -u > analyses/bigBed.peaks.ids.txt
+cut -f1 analyses/bigBed.peaks.ids.txt |\
+while read filename; do
+  wget -P data/bigBed.files "https://www.encodeproject.org/files/$filename/@@download/$filename.bigBed"
+done
+```
+
+We can check their integrity by verifying their MD5 hash. As we can see in the image, they are correct.
+```
+for file_type in bigBed; do
+
+  # retrieve original MD5 hash from the metadata
+  ../bin/selectRows.sh <(cut -f1 analyses/"$file_type".*.ids.txt) metadata.tsv | cut -f1,45 > data/"$file_type".files/md5sum.txt
+
+  # compute MD5 hash on the downloaded files 
+  cat data/"$file_type".files/md5sum.txt |\
+  while read filename original_md5sum; do 
+    md5sum data/"$file_type".files/"$filename"."$file_type" |\
+    awk -v filename="$filename" -v original_md5sum="$original_md5sum" 'BEGIN{FS=" "; OFS="\t"}{print filename, original_md5sum, $1}' 
+  done > tmp 
+  mv tmp data/"$file_type".files/md5sum.txt
+
+  # make sure there are no files for which original and computed MD5 hashes differ
+  awk '$2!=$3' data/"$file_type".files/md5sum.txt
+
+done
+cat data/bigBed.files/md5sum.txt
+```
+
+
 
 
 
