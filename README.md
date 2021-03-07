@@ -547,14 +547,29 @@ sed 's/\"//g' |\
 awk 'BEGIN{FS=OFS="\t"}$1!="chrM"{$2=($2-1); print $0}' > annotation/gencode.v24.protein.coding.gene.body.bed
 ```
 
+We retrieve the number of peaks that fall inside gene coordinates in each tissue.
+```
 cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do    bedtools intersect -a annotation/gencode.v24.protein.coding.gene.body.bed -b data/bed.files/"$filename".bed -u |  cut -f7 |  sort -u > analyses/peaks.analysis/genes.with.peaks.inside."$tissue".txt; done
 
 cat analyses/peaks.analysis/genes.with.peaks.inside.stomach.txt | wc -l
 cat analyses/peaks.analysis/genes.with.peaks.inside.sigmoid_colon.txt | wc -l
+```
 
+On the other hand these are the total peaks.
+```
+cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do  cat data/bed.files/"$filename".bed |echo $tissue $(wc -l); done
+```
 
+So we can just compute the difference.
+```
+cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do cat data/bed.files/"$filename".bed | echo $tissue = $(wc -l) -  $(cat analyses/peaks.analysis/genes.with.peaks.inside.$tissue.txt | wc -l); done
 
+cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do cat data/bed.files/"$filename".bed | echo $tissue $(($(wc -l) - $(cat analyses/peaks.analysis/genes.with.peaks.inside.$tissue.txt | wc -l))); done
+```
 
+![image](https://user-images.githubusercontent.com/80123456/110249636-4e835e00-7f77-11eb-9a1d-0d4c97451493.png)
+
+Therefore, 81312 peaks fall outside gene coordinates in sigmoid colon and 87814 peaks fall outside gene coordinates in stomach.
 
 
 
