@@ -477,6 +477,8 @@ done
 cat data/bigBed.files/md5sum.txt
 ```
 
+![image](https://user-images.githubusercontent.com/80123456/110252760-34ea1280-7f87-11eb-99eb-06a5eb921d75.png)
+
 **For each tissue, run an intersection analysis using BEDTools: report 1) the number of peaks that intersect promoter regions, 2) the number of peaks that fall outside gene coordinates (whole gene body, not just the promoter regions).**
 
 BEDTools need BED files, so we have to convert bigBed files of peaks to BED files with the bigBedToBed command.
@@ -670,12 +672,64 @@ We retrieve regions with peaks in these regions in each tissue.
 cut -f-2 analyses/bigBed.peaks.ids.txt |\
 while read filename tissue; do 
   bedtools intersect -a annotation/open.outside.genes."$tissue".bed -b data/bed.files/"$filename".bed -u |\
-  sort -u > analyses/peaks.analysis/open.regions.H3K27ac."$tissue".txt
+  sort -u > analyses/peaks.analysis/open.regions.H3K27ac."$tissue".bed
 done
 ```
 
+We follow the same steps for the H3K4me1.
+```
+grep -F H3K4me1 metadata.tsv |\
+grep -F "bigBed_narrowPeak" |\
+grep -F "pseudoreplicated_peaks" |\
+grep -F "GRCh38" |\
+awk 'BEGIN{FS=OFS="\t"}{print $1, $10, $22}' |\
+sort -k2,2 -k1,1r |\
+sort -k2,2 -u > analyses/bigBed.peaks.ids.txt
 
+cut -f1 analyses/bigBed.peaks.ids.txt |\
+while read filename; do
+  wget -P data/bigBed.files "https://www.encodeproject.org/files/$filename/@@download/$filename.bigBed"
+done
+```
 
+```
+for file_type in bigBed; do
+
+  # retrieve original MD5 hash from the metadata
+  ../bin/selectRows.sh <(cut -f1 analyses/"$file_type".*.ids.txt) metadata.tsv | cut -f1,45 > data/"$file_type".files/md5sum.txt
+
+  # compute MD5 hash on the downloaded files 
+  cat data/"$file_type".files/md5sum.txt |\
+  while read filename original_md5sum; do 
+    md5sum data/"$file_type".files/"$filename"."$file_type" |\
+    awk -v filename="$filename" -v original_md5sum="$original_md5sum" 'BEGIN{FS=" "; OFS="\t"}{print filename, original_md5sum, $1}' 
+  done > tmp 
+  mv tmp data/"$file_type".files/md5sum.txt
+
+  # make sure there are no files for which original and computed MD5 hashes differ
+  awk '$2!=$3' data/"$file_type".files/md5sum.txt
+
+done
+cat data/bigBed.files/md5sum.txt
+```
+
+Their MD5 hashes are correct.
+
+```
+cut -f1 analyses/bigBed.peaks.ids.txt |\
+while read filename; do
+  bigBedToBed data/bigBed.files/"$filename".bigBed data/bed.files/"$filename".bed
+done
+```
+
+The difference is now we retrieve regions that overlaping peaks of H3K27ac in the corresponding tissue.
+```
+cut -f-2 analyses/bigBed.peaks.ids.txt |\
+while read filename tissue; do 
+  bedtools intersect -a analyses/peaks.analysis/open.regions.H3K27ac."$tissue".bed -b data/bed.files/"$filename".bed -u |\
+  sort -u > analyses/peaks.analysis/candidate.enhancers."$tissue".txt
+done
+```
 
 
 
