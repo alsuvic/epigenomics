@@ -427,14 +427,18 @@ mkdir data
 mkdir data/bigBed.files
 ```
 
-**Retrieve from a newly generated metadata file ATAC-seq peaks (bigBed narrow, pseudoreplicated peaks, assembly GRCh38) for stomach and sigmoid_colon for the same donor used in the previous sections. Hint: have a look at what we did here. Make sure your md5sum values coincide with the ones provided by ENCODE.**
+**Retrieve from a newly generated metadata file ATAC-seq peaks (bigBed narrow, pseudoreplicated peaks, assembly GRCh38) for stomach and sigmoid_colon for the same donor used in the previous sections. Make sure your md5sum values coincide with the ones provided by ENCODE.**
 
 We get the link to download the metadate file from the experiments in ENCODE associated the following characteristics:
 
 Assay type: DNA accessibility
+
 Assay title: ATAC-seq
+
 Status: released
+
 Genome assembly: GRCh38
+
 Biosample term name: stomach AND sigmoid colon
 
 Then, we download the file.
@@ -473,11 +477,50 @@ done
 cat data/bigBed.files/md5sum.txt
 ```
 
+**For each tissue, run an intersection analysis using BEDTools: report 1) the number of peaks that intersect promoter regions, 2) the number of peaks that fall outside gene coordinates (whole gene body, not just the promoter regions).**
 
+BEDTools need BED files, so we have to convert bigBed files of peaks to BED files with the bigBedToBed command.
+```
+mkdir data/bed.files
+cut -f1 analyses/bigBed.peaks.ids.txt |\
+while read filename; do
+  bigBedToBed data/bigBed.files/"$filename".bigBed data/bed.files/"$filename".bed
+done
+```
 
+First, we download the list of promoters ([-2 kb, +2 Kb] from TSS) of protein-coding genes.
+```
+mkdir annotation
+cd annotation/
+wget https://public-docs.crg.es/rguigo/Data/bborsari/UVIC/epigenomics_course/gencode.v24.protein.coding.non.redundant.TSS.bed
+cd ..
+```
 
+Then, we retrieve genes with peaks at the promoter region in each tissue.
+```
+mkdir analyses/peaks.analysis
+cut -f-2 analyses/bigBed.peaks.ids.txt |\
+while read filename tissue; do 
+  bedtools intersect -a annotation/gencode.v24.protein.coding.non.redundant.TSS.bed -b data/bed.files/"$filename".bed -u |\
+  cut -f7 |\
+  sort -u > analyses/peaks.analysis/genes.with.peaks."$tissue".txt
+done
+```
 
+Now, we can see the new files.
+```
+head analyses/peaks.analysis/genes.with.peaks.stomach.txt
+```
 
+So we count the number of peaks that intersect promoter regions.
+```
+cat analyses/peaks.analysis/genes.with.peaks.stomach.txt | wc -l
+cat analyses/peaks.analysis/genes.with.peaks.sigmoid_colon.txt | wc -l
+```
+
+As we can see, 15029 peaks intersect promoter regions in stomach and 14273 peaks intersect promoter regions in sigmoid colon.
+
+![image](https://user-images.githubusercontent.com/80123456/110247048-77e9bd00-7f6a-11eb-85dc-eb90bfc38c86.png)
 
 
 
