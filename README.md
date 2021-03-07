@@ -647,6 +647,8 @@ done
 cat data/bigBed.files/md5sum.txt
 ```
 
+![image](https://user-images.githubusercontent.com/80123456/110252867-c8bbde80-7f87-11eb-99d8-c990339f5d01.png)
+
 We create some folders.
 ```
 mkdir analyses/peaks.analysis
@@ -713,7 +715,9 @@ done
 cat data/bigBed.files/md5sum.txt
 ```
 
-Their MD5 hashes are correct.
+![image](https://user-images.githubusercontent.com/80123456/110252933-0f113d80-7f88-11eb-914d-b750531e4a56.png)
+
+Their MD5 hashes are also correct.
 
 ```
 cut -f1 analyses/bigBed.peaks.ids.txt |\
@@ -731,9 +735,34 @@ while read filename tissue; do
 done
 ```
 
+![image](https://user-images.githubusercontent.com/80123456/110253032-762ef200-7f88-11eb-886d-7c31157cf875.png)
 
+As we can see in the image, we got 209 candidate enhancers in stomach and 321 in sigmoid colon.
 
+**Task 3: Focus on regulatory elements that are located on chromosome 1 (hint: to parse a file based on the value of a specific column, have a look at what we did here), and generate a file regulatory.elements.starts.tsv that contains the name of the regulatory region (i.e. the name of the original ATAC-seq peak) and the start (5') coordinate of the region.**
 
+We filter by the chromosome 1 and keep only the name of the regulatory region and the start (5') coordinate of the region. So we have 32 candidates.
+```
+awk '$1=="chr1"'  analyses/peaks.analysis/candidate.enhancers.stomach.txt | cut -f2,4 > regulatory.elements.starts.tsv
+head regulatory.elements.starts.tsv
+cat regulatory.elements.starts.tsv | wc -l
+```
+
+![image](https://user-images.githubusercontent.com/80123456/110253604-84324200-7f8b-11eb-8ce0-e0edab2a0493.png)
+
+**Task 4: Focus on protein-coding genes located on chromosome 1. From the BED file of gene body coordinates that you generated here, prepare a tab-separated file called gene.starts.tsv which will store the name of the gene in the first column, and the start coordinate of the gene on the second column (REMEMBER: for genes located on the minus strand, the start coordinate will be at the 3').**
+
+We copy the file to the current directory.
+```
+cp ../ChIP-seq/annotation/gencode.v24.protein.coding.gene.body.bed annotation/
+```
+
+We get the file.
+```
+cat annotation/gencode.v24.protein.coding.gene.body.bed | awk 'BEGIN{FS=OFS="\t"}{if ($6=="+"){start=$2} else {start=$3}; print $4, start}' > gene.starts.tsv
+```
+
+**Task 5: Download or copy this python script inside the epigenomics_uvic/bin folder. This script takes as input two distinct arguments: 1) --input corresponds to the file gene.starts.tsv (i.e. the file you generated in Task #4); 2) --start corresponds to the 5' coordinate of a regulatory element. Complete the python script so that for a given coordinate --start the script returns the closest gene, the start of the gene and the distance of the regulatory element.**
 
 
 
