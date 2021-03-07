@@ -549,30 +549,6 @@ sed 's/\"//g' |\
 awk 'BEGIN{FS=OFS="\t"}$1!="chrM"{$2=($2-1); print $0}' > annotation/gencode.v24.protein.coding.gene.body.bed
 ```
 
-We retrieve the number of peaks that fall inside gene coordinates in each tissue.
-```
-cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do    bedtools intersect -a annotation/gencode.v24.protein.coding.gene.body.bed -b data/bed.files/"$filename".bed -u |  cut -f7 |  sort -u > analyses/peaks.analysis/genes.with.peaks.inside."$tissue".txt; done
-
-cat analyses/peaks.analysis/genes.with.peaks.inside.stomach.txt | wc -l
-cat analyses/peaks.analysis/genes.with.peaks.inside.sigmoid_colon.txt | wc -l
-```
-
-On the other hand these are the total peaks.
-```
-cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do  cat data/bed.files/"$filename".bed |echo $tissue $(wc -l); done
-```
-
-So we can just compute the difference.
-```
-cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do cat data/bed.files/"$filename".bed | echo $tissue = $(wc -l) -  $(cat analyses/peaks.analysis/genes.with.peaks.inside.$tissue.txt | wc -l); done
-
-cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do cat data/bed.files/"$filename".bed | echo $tissue $(($(wc -l) - $(cat analyses/peaks.analysis/genes.with.peaks.inside.$tissue.txt | wc -l))); done
-```
-
-![image](https://user-images.githubusercontent.com/80123456/110249636-4e835e00-7f77-11eb-9a1d-0d4c97451493.png)
-
-Therefore, 81312 peaks fall outside gene coordinates in sigmoid colon and 87814 peaks fall outside gene coordinates in stomach.
-
 We retrieve the number of peaks that fall outside gene coordinates in each tissue.
 ```
 cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do    bedtools intersect -a annotation/gencode.v24.protein.coding.gene.body.bed -b data/bed.files/"$filename".bed -v | sort -u > analyses/peaks.analysis/genes.with.peaks.outside."$tissue".txt; done
@@ -741,14 +717,16 @@ As we can see in the image, we got 209 candidate enhancers in stomach and 321 in
 
 **Task 3: Focus on regulatory elements that are located on chromosome 1 (hint: to parse a file based on the value of a specific column, have a look at what we did here), and generate a file regulatory.elements.starts.tsv that contains the name of the regulatory region (i.e. the name of the original ATAC-seq peak) and the start (5') coordinate of the region.**
 
-We filter by the chromosome 1 and keep only the name of the regulatory region and the start (5') coordinate of the region. So we have 32 candidates.
+We filter by the chromosome 1 and keep only the name of the regulatory region and the start (5') coordinate of the region. So we have 106 candidates.
 ```
-awk '$1=="chr1"'  analyses/peaks.analysis/candidate.enhancers.stomach.txt | cut -f2,4 > regulatory.elements.starts.tsv
+for tissue in stomach sigmoid_colon; do
+  awk '$1=="chr1"'  analyses/peaks.analysis/candidate.enhancers."$tissue".txt | awk 'BEGIN{FS=OFS="\t"}{if ($6=="+"){start=$2} else {start=$3}; print $4, start}' >> regulatory.elements.starts.tsv
+done
 head regulatory.elements.starts.tsv
 cat regulatory.elements.starts.tsv | wc -l
 ```
 
-![image](https://user-images.githubusercontent.com/80123456/110253604-84324200-7f8b-11eb-8ce0-e0edab2a0493.png)
+![image](https://user-images.githubusercontent.com/80123456/110256394-fc533480-7f98-11eb-824f-c3eed0acb4b8.png)
 
 **Task 4: Focus on protein-coding genes located on chromosome 1. From the BED file of gene body coordinates that you generated here, prepare a tab-separated file called gene.starts.tsv which will store the name of the gene in the first column, and the start coordinate of the gene on the second column (REMEMBER: for genes located on the minus strand, the start coordinate will be at the 3').**
 
@@ -764,8 +742,26 @@ cat annotation/gencode.v24.protein.coding.gene.body.bed | awk 'BEGIN{FS=OFS="\t"
 
 **Task 5: Download or copy this python script inside the epigenomics_uvic/bin folder. This script takes as input two distinct arguments: 1) --input corresponds to the file gene.starts.tsv (i.e. the file you generated in Task #4); 2) --start corresponds to the 5' coordinate of a regulatory element. Complete the python script so that for a given coordinate --start the script returns the closest gene, the start of the gene and the distance of the regulatory element.**
 
+We download the script.
+```
+wget https://public-docs.crg.es/rguigo/Data/bborsari/UVIC/epigenomics_course/get.distance.py
+```
 
+We modify the script.
+```
+nano get.distance.py
+cat get.distance.py
+```
 
+![image](https://user-images.githubusercontent.com/80123456/110257074-733dfc80-7f9c-11eb-99be-2a25a29ab78c.png)
+
+**Task 6. For each regulatory element contained in the file regulatory.elements.starts.tsv, retrieve the closest gene and the distance to the closest gene using the python script you created above.**
+
+cat regulatory.elements.starts.tsv | while read element start; do 
+   python get.distance.py --input gene.starts.tsv --start $start; 
+done > regulatoryElements.genes.distances.tsv
+
+**Task 7: Use R to compute the mean and the median of the distances stored in regulatoryElements.genes.distances.tsv.**
 
 
 
