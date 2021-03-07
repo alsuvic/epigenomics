@@ -573,7 +573,7 @@ Therefore, 81312 peaks fall outside gene coordinates in sigmoid colon and 87814 
 
 We retrieve the number of peaks that fall outside gene coordinates in each tissue.
 ```
-cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do    bedtools intersect -a annotation/gencode.v24.protein.coding.gene.body.bed -b data/bed.files/"$filename".bed -v |  cut -f7 |  sort -u > analyses/peaks.analysis/genes.with.peaks.outside."$tissue".txt; done
+cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do    bedtools intersect -a annotation/gencode.v24.protein.coding.gene.body.bed -b data/bed.files/"$filename".bed -v | sort -u > analyses/peaks.analysis/genes.with.peaks.outside."$tissue".txt; done
 
 cat analyses/peaks.analysis/genes.with.peaks.outside.stomach.txt | wc -l
 cat analyses/peaks.analysis/genes.with.peaks.outside.sigmoid_colon.txt | wc -l
@@ -582,6 +582,112 @@ cat analyses/peaks.analysis/genes.with.peaks.outside.sigmoid_colon.txt | wc -l
 ![image](https://user-images.githubusercontent.com/80123456/110249995-5a701f80-7f79-11eb-8a15-214255e3fba3.png)
 
 Therefore, 4836 peaks fall outside gene coordinates in sigmoid colon and 4036 peaks fall outside gene coordinates in stomach.
+
+## 5. Distal regulatory activity
+
+**Task 1: Create a folder regulatory_elements inside epigenomics_uvic. This will be the folder where you store all your subsequent results.**
+
+```
+cd ..
+mkdir regulatory_elements
+cd regulatory_elements/
+```
+
+**Task 2: Distal regulatory regions are usually found to be flanked by both H3K27ac and H3K4me1. From your starting catalogue of open regions in each tissue, select those that overlap peaks of H3K27ac AND H3K4me1 in the corresponding tissue. You will get a list of candidate distal regulatory elements for each tissue. How many are they?**
+
+First, we create some folders.
+```
+mkdir analyses
+mkdir data
+mkdir data/bigBed.files
+```
+
+We download the metadata file using the script download.metadata.sh.
+```
+../bin/download.metadata.sh "https://www.encodeproject.org/metadata/?type=Experiment&replicates.library.biosample.donor.uuid=d370683e-81e7-473f-8475-7716d027849b&status=released&assembly=GRCh38&biosample_ontology.term_name=sigmoid+colon&biosample_ontology.term_name=stomach&assay_slims=DNA+binding" 
+```
+
+We will start with H3K27ac, so we first parse the metadata file to retrieve the corresponding IDs for H3K27ac, and then download the files in the forlder bigBed.files.
+```
+grep -F H3K27ac metadata.tsv |\
+grep -F "bigBed_narrowPeak" |\
+grep -F "pseudoreplicated_peaks" |\
+grep -F "GRCh38" |\
+awk 'BEGIN{FS=OFS="\t"}{print $1, $10, $22}' |\
+sort -k2,2 -k1,1r |\
+sort -k2,2 -u > analyses/bigBed.peaks.ids.txt
+
+cut -f1 analyses/bigBed.peaks.ids.txt |\
+while read filename; do
+  wget -P data/bigBed.files "https://www.encodeproject.org/files/$filename/@@download/$filename.bigBed"
+done
+```
+
+We can check their integrity by verifying their MD5 hash. As we can see in the image, they are correct.
+```
+for file_type in bigBed; do
+
+  # retrieve original MD5 hash from the metadata
+  ../bin/selectRows.sh <(cut -f1 analyses/"$file_type".*.ids.txt) metadata.tsv | cut -f1,45 > data/"$file_type".files/md5sum.txt
+
+  # compute MD5 hash on the downloaded files 
+  cat data/"$file_type".files/md5sum.txt |\
+  while read filename original_md5sum; do 
+    md5sum data/"$file_type".files/"$filename"."$file_type" |\
+    awk -v filename="$filename" -v original_md5sum="$original_md5sum" 'BEGIN{FS=" "; OFS="\t"}{print filename, original_md5sum, $1}' 
+  done > tmp 
+  mv tmp data/"$file_type".files/md5sum.txt
+
+  # make sure there are no files for which original and computed MD5 hashes differ
+  awk '$2!=$3' data/"$file_type".files/md5sum.txt
+
+done
+cat data/bigBed.files/md5sum.txt
+```
+
+We create some folders.
+```
+mkdir analyses/peaks.analysis
+mkdir data/bed.files
+mkdir annotation
+```
+
+We convert bigBed files of H3K27ac peaks to BED files with the bigBedToBed command
+```
+cut -f1 analyses/bigBed.peaks.ids.txt |\
+while read filename; do
+  bigBedToBed data/bigBed.files/"$filename".bigBed data/bed.files/"$filename".bed
+done
+```
+
+We convert the previous catalogue of open regions in each tissue to bed files in the current directory.
+```
+for tissue in stomach sigmoid_colon; do   cat ../ATAC-seq/analyses/peaks.analysis/genes.with.peaks.outside."$tissue".txt > annotation/open.outside.genes."$tissue".bed; done
+```
+
+We retrieve regions with peaks in these regions in each tissue.
+```
+cut -f-2 analyses/bigBed.peaks.ids.txt |\
+while read filename tissue; do 
+  bedtools intersect -a annotation/open.outside.genes."$tissue".bed -b data/bed.files/"$filename".bed -u |\
+  sort -u > analyses/peaks.analysis/open.regions.H3K27ac."$tissue".txt
+done
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
