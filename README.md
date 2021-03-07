@@ -726,7 +726,7 @@ head regulatory.elements.starts.tsv
 cat regulatory.elements.starts.tsv | wc -l
 ```
 
-![image](https://user-images.githubusercontent.com/80123456/110256394-fc533480-7f98-11eb-824f-c3eed0acb4b8.png)
+![image](https://user-images.githubusercontent.com/80123456/110258205-b058bd80-7fa1-11eb-9970-20d8abb00525.png)
 
 **Task 4: Focus on protein-coding genes located on chromosome 1. From the BED file of gene body coordinates that you generated here, prepare a tab-separated file called gene.starts.tsv which will store the name of the gene in the first column, and the start coordinate of the gene on the second column (REMEMBER: for genes located on the minus strand, the start coordinate will be at the 3').**
 
