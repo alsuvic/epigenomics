@@ -518,9 +518,39 @@ cat analyses/peaks.analysis/genes.with.peaks.stomach.txt | wc -l
 cat analyses/peaks.analysis/genes.with.peaks.sigmoid_colon.txt | wc -l
 ```
 
+![image](https://user-images.githubusercontent.com/80123456/110247048-77e9bd00-7f6a-11eb-85dc-eb90bfc38c86.png)
+
 As we can see, 15029 peaks intersect promoter regions in stomach and 14273 peaks intersect promoter regions in sigmoid colon.
 
-![image](https://user-images.githubusercontent.com/80123456/110247048-77e9bd00-7f6a-11eb-85dc-eb90bfc38c86.png)
+For the second part, we need the genomic coordinates of the genes. Therefore, we download the Gencode annotation version 24.
+```
+cd annotation
+wget https://www.encodeproject.org/files/gencode.v24.primary_assembly.annotation/@@download/gencode.v24.primary_assembly.annotation.gtf.gz
+cd ..
+gunzip annotation/gencode.v24.primary_assembly.annotation.gtf.gz
+```
+
+We convert the gtf annotation file to a BED format in three steps:
+
+retrieve gene body coordinates of protein-coding genes (chr, start, end, strand).
+
+remove mitochondrial genes (i.e. those located on chrM).
+
+move from a 1-based to a 0-based coordinate system.
+
+```
+awk '$3=="gene"' annotation/gencode.v24.primary_assembly.annotation.gtf |\
+grep -F "protein_coding" |\
+cut -d ";" -f1 |\
+awk 'BEGIN{OFS="\t"}{print $1, $4, $5, $10, 0, $7, $10}' |\
+sed 's/\"//g' |\
+awk 'BEGIN{FS=OFS="\t"}$1!="chrM"{$2=($2-1); print $0}' > annotation/gencode.v24.protein.coding.gene.body.bed
+```
+
+cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do    bedtools intersect -a annotation/gencode.v24.protein.coding.gene.body.bed -b data/bed.files/"$filename".bed -u |  cut -f7 |  sort -u > analyses/peaks.analysis/genes.with.peaks.inside."$tissue".txt; done
+
+cat analyses/peaks.analysis/genes.with.peaks.inside.stomach.txt | wc -l
+cat analyses/peaks.analysis/genes.with.peaks.inside.sigmoid_colon.txt | wc -l
 
 
 
