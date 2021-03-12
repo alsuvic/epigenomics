@@ -498,31 +498,28 @@ wget https://public-docs.crg.es/rguigo/Data/bborsari/UVIC/epigenomics_course/gen
 cd ..
 ```
 
-Then, we retrieve genes with peaks at the promoter region in each tissue.
+Then, we retrieve peaks at the promoter region in each tissue.
 ```
 mkdir analyses/peaks.analysis
-cut -f-2 analyses/bigBed.peaks.ids.txt |\
+cat analyses/bigBed.peaks.ids.txt |\
 while read filename tissue; do 
-  bedtools intersect -a annotation/gencode.v24.protein.coding.non.redundant.TSS.bed -b data/bed.files/"$filename".bed -u |\
-  cut -f7 |\
-  sort -u > analyses/peaks.analysis/genes.with.peaks."$tissue".txt
+  bedtools intersect -a data/bed.files/"$filename".bed -b annotation/gencode.v24.protein.coding.non.redundant.TSS.bed -u -wa |\
+  sort -u > analyses/peaks.analysis/peaks.promoters."$tissue".txt
 done
 ```
 
-Now, we can see the new files.
+Now, we can see the new files and count the number of peaks that intersect promoter regions.
 ```
-head analyses/peaks.analysis/genes.with.peaks.stomach.txt
+head analyses/peaks.analysis/peaks.promoters.stomach.txt
+head analyses/peaks.analysis/peaks.promoters.sigmoid_colon.txt
+
+cat analyses/peaks.analysis/peaks.promoters.stomach.txt | wc -l
+cat analyses/peaks.analysis/peaks.promoters.sigmoid_colon.txt | wc -l
 ```
 
-So we count the number of peaks that intersect promoter regions.
-```
-cat analyses/peaks.analysis/genes.with.peaks.stomach.txt | wc -l
-cat analyses/peaks.analysis/genes.with.peaks.sigmoid_colon.txt | wc -l
-```
+![image](https://user-images.githubusercontent.com/80123456/110989357-11054300-8372-11eb-896a-cfcd6789f46e.png)
 
-![image](https://user-images.githubusercontent.com/80123456/110247048-77e9bd00-7f6a-11eb-85dc-eb90bfc38c86.png)
-
-As we can see, 15029 peaks intersect promoter regions in stomach and 14273 peaks intersect promoter regions in sigmoid colon.
+As we can see, 44749 peaks intersect promoter regions in stomach and 47871 peaks intersect promoter regions in sigmoid colon.
 
 For the second part, we need the genomic coordinates of the genes. Therefore, we download the Gencode annotation version 24.
 ```
@@ -551,15 +548,17 @@ awk 'BEGIN{FS=OFS="\t"}$1!="chrM"{$2=($2-1); print $0}' > annotation/gencode.v24
 
 We retrieve the number of peaks that fall outside gene coordinates in each tissue.
 ```
-cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do    bedtools intersect -a annotation/gencode.v24.protein.coding.gene.body.bed -b data/bed.files/"$filename".bed -v | sort -u > analyses/peaks.analysis/genes.with.peaks.outside."$tissue".txt; done
+cut -f-2 analyses/bigBed.peaks.ids.txt |while read filename tissue; do    bedtools intersect -a data/bed.files/"$filename".bed -b annotation/gencode.v24.protein.coding.gene.body.bed -v | sort -u > analyses/peaks.analysis/genes.with.peaks.outside."$tissue".txt; done
 
+head analyses/peaks.analysis/genes.with.peaks.outside.stomach.txt
 cat analyses/peaks.analysis/genes.with.peaks.outside.stomach.txt | wc -l
+head analyses/peaks.analysis/genes.with.peaks.outside.sigmoid_colon.txt
 cat analyses/peaks.analysis/genes.with.peaks.outside.sigmoid_colon.txt | wc -l
 ```
 
-![image](https://user-images.githubusercontent.com/80123456/110249995-5a701f80-7f79-11eb-8a15-214255e3fba3.png)
+![image](https://user-images.githubusercontent.com/80123456/110989643-7b1de800-8372-11eb-816c-b1e20e2df5ab.png)
 
-Therefore, 4836 peaks fall outside gene coordinates in sigmoid colon and 4036 peaks fall outside gene coordinates in stomach.
+Therefore, 37035 peaks fall outside gene coordinates in sigmoid colon and 34537 peaks fall outside gene coordinates in stomach.
 
 ## 5. Distal regulatory activity
 
@@ -709,24 +708,32 @@ while read filename tissue; do
   bedtools intersect -a analyses/peaks.analysis/open.regions.H3K27ac."$tissue".bed -b data/bed.files/"$filename".bed -u |\
   sort -u > analyses/peaks.analysis/candidate.enhancers."$tissue".txt
 done
+
+head analyses/peaks.analysis/candidate.enhancers.stomach.txt
+cat analyses/peaks.analysis/candidate.enhancers.stomach.txt | wc -l
+head analyses/peaks.analysis/candidate.enhancers.sigmoid_colon.txt
+cat analyses/peaks.analysis/candidate.enhancers.sigmoid_colon.txt | wc -l
 ```
 
-![image](https://user-images.githubusercontent.com/80123456/110253032-762ef200-7f88-11eb-886d-7c31157cf875.png)
+![image](https://user-images.githubusercontent.com/80123456/110990406-92110a00-8373-11eb-9125-5ef937744050.png)
 
-As we can see in the image, we got 209 candidate enhancers in stomach and 321 in sigmoid colon.
+As we can see in the image, we got 8022 candidate enhancers in stomach and 14215 in sigmoid colon.
 
 **Task 3: Focus on regulatory elements that are located on chromosome 1 (hint: to parse a file based on the value of a specific column, have a look at what we did here), and generate a file regulatory.elements.starts.tsv that contains the name of the regulatory region (i.e. the name of the original ATAC-seq peak) and the start (5') coordinate of the region.**
 
-We filter by the chromosome 1 and keep only the name of the regulatory region and the start (5') coordinate of the region. So we have 106 candidates.
+We filter by the chromosome 1 and keep only the name of the regulatory region and the start (5') coordinate of the region. So we have 987 candidates for stomach and 1521 for sigmoid colon.
 ```
 for tissue in stomach sigmoid_colon; do
-  awk '$1=="chr1"'  analyses/peaks.analysis/candidate.enhancers."$tissue".txt | awk 'BEGIN{FS=OFS="\t"}{if ($6=="+"){start=$2} else {start=$3}; print $4, start}' >> regulatory.elements.starts.tsv
+  awk '$1=="chr1"'  analyses/peaks.analysis/candidate.enhancers."$tissue".txt | awk 'BEGIN{FS=OFS="\t"}{if ($6=="+"){start=$2} else {start=$3}; print $4, start}' > regulatory.elements.starts.$tissue.tsv
 done
-head regulatory.elements.starts.tsv
-cat regulatory.elements.starts.tsv | wc -l
+
+head regulatory.elements.starts.stomach.tsv
+cat regulatory.elements.starts.stomach.tsv | wc -l
+head regulatory.elements.starts.stomach.tsv
+cat regulatory.elements.starts.sigmoid_colon.tsv | wc -l
 ```
 
-![image](https://user-images.githubusercontent.com/80123456/110258205-b058bd80-7fa1-11eb-9970-20d8abb00525.png)
+![image](https://user-images.githubusercontent.com/80123456/110995114-18c8e580-837a-11eb-8ec2-a3afa6d63e7e.png)
 
 **Task 4: Focus on protein-coding genes located on chromosome 1. From the BED file of gene body coordinates that you generated here, prepare a tab-separated file called gene.starts.tsv which will store the name of the gene in the first column, and the start coordinate of the gene on the second column (REMEMBER: for genes located on the minus strand, the start coordinate will be at the 3').**
 
@@ -755,13 +762,30 @@ cat get.distance.py
 
 ![image](https://user-images.githubusercontent.com/80123456/110257074-733dfc80-7f9c-11eb-99be-2a25a29ab78c.png)
 
+To make sure our script is working fine, we should be getting the result: ENSG00000187642.9	982093 2093
+
+```
+python get.distance.py --input gene.starts.tsv --start 980000
+```
+
+![image](https://user-images.githubusercontent.com/80123456/110993413-8b849180-8377-11eb-9feb-0fa3f94c4c0c.png)
+
+We do not get the expected output. In fact, if we print the current position inside the for-loop, we can see the position reach the number 982093 as we expected, but it continues. So maybe there is an error in the input file.
+
 **Task 6. For each regulatory element contained in the file regulatory.elements.starts.tsv, retrieve the closest gene and the distance to the closest gene using the python script you created above.**
 
 We get the closest gene and the distance to the closest gene.
 ```
-cat regulatory.elements.starts.tsv | while read element start; do 
-   python get.distance.py --input gene.starts.tsv --start $start; 
-done > regulatoryElements.genes.distances.tsv
+for tissue in stomach sigmoid_colon; do
+ cat regulatory.elements.starts."$tissue".tsv | while read element start; do 
+    python get.distance.py --input gene.starts.tsv --start $start; done
+ > regulatoryElements.genes.distances."$tissue".tsv
+done
+```
+
+```
+head regulatoryElements.genes.distances.stomach.tsv
+head regulatoryElements.genes.distances.sigmoid_colon.tsv
 ```
 
 **Task 7: Use R to compute the mean and the median of the distances stored in regulatoryElements.genes.distances.tsv.**
