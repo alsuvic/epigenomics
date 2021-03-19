@@ -778,8 +778,7 @@ We get the closest gene and the distance to the closest gene.
 ```
 for tissue in stomach sigmoid_colon; do
  cat regulatory.elements.starts."$tissue".tsv | while read element start; do 
-    python get.distance.py --input gene.starts.tsv --start $start; done
- > regulatoryElements.genes.distances."$tissue".tsv
+    python get.distance.py --input gene.starts.tsv --start $start; done > regulatoryElements.genes.distances."$tissue".tsv
 done
 ```
 
@@ -788,8 +787,25 @@ head regulatoryElements.genes.distances.stomach.tsv
 head regulatoryElements.genes.distances.sigmoid_colon.tsv
 ```
 
+![image](https://user-images.githubusercontent.com/80123456/111837112-a87d0f80-88f7-11eb-9283-352b050d1f42.png)
+
+
 **Task 7: Use R to compute the mean and the median of the distances stored in regulatoryElements.genes.distances.tsv.**
 
+Finally, we use R to compute the mean and the median of the distances.
+
+```
+R
+for (tissue in c("sigmoid_colon", "stomach")){
+ my_table <- read.table(paste0("regulatoryElements.genes.distances.", tissue, ".tsv"))
+ result <- paste(tissue, "Mean=", mean(my_table$V3), "Median=", median(my_table$V3))
+ print(result)
+}
+```
+
+![image](https://user-images.githubusercontent.com/80123456/111838402-98fec600-88f9-11eb-8ec4-88ec51ea94c3.png)
+
+As we can see, we got a mean= 20103.1084812623 and median= 6058 for sigmoid colon, while a mean = 15807.4093211753 and median= 5779 for stomach.
 
 
 
